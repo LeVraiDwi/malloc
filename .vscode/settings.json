@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "mman.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "ft_malloc_include.h": "c",
+        "stdio.h": "c"
     }
 }
