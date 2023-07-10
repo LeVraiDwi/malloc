@@ -42,7 +42,6 @@ typedef struct s_block {
     size_t          size;
     bool            allocated;
     t_page          *parent;
-    void            *index;
     struct s_block  *next;
     struct s_block  *prev;
 }       t_block;
@@ -68,6 +67,18 @@ typedef struct s_heap {
     t_zone  large;
 }       t_heap;
 
-extern t_heap g_heap;
-extern pthread_mutex_t g_heap_mutex;
+extern t_heap heap;
+extern pthread_mutex_t heap_mutex;
+
+void    *ft_find_fitting_block(t_zone *zone, size_t block_size);
+void    *ft_fragment_block(t_block *block, t_page *page, size_t block_size);
+void    *ft_add_page(t_zone *zone, size_t block_size);
+void    *ft_alloc(t_zone *zone, size_t block_size);
+void    *ft_malloc(size_t size);
+
+void    ft_free(void *ptr);
+void    ft_defragment_block(t_block *block, t_page *page);
+
+t_page  *ft_alloc_page(size_t size);
+
 #endif
