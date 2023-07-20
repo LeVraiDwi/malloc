@@ -18,11 +18,14 @@ void    ft_defragment_block(t_block *block, t_page *page) {
         if (block->next)
             block->next->prev = act_block;
         act_block->next = block->next;
-        ft_bzero(HEADER_BLOCK_SHIFT(act_block), act_block->size - sizeof(t_block));
+        //ft_bzero(HEADER_BLOCK_SHIFT(act_block), act_block->size - sizeof(t_block));
         page->nb_block--;
         page->nb_freed--;
         block = act_block;
-        act_block = block->prev;
+        #ifdef MALLOC_OVERFLOW
+            set_prot(act_block); 
+        #endif
+        act_block = act_block->prev;
     }
     act_block = block->next;
     while (act_block && act_block->allocated == false) {
@@ -30,9 +33,12 @@ void    ft_defragment_block(t_block *block, t_page *page) {
         if (act_block->next)
             act_block->next->prev = block;
         block->next = act_block->next;
-        ft_bzero(HEADER_BLOCK_SHIFT(block), block->size - sizeof(t_block));
+        //ft_bzero(HEADER_BLOCK_SHIFT(block), block->size - sizeof(t_block));
         page->nb_block--;
         page->nb_freed--;
+        #ifdef MALLOC_OVERFLOW
+            set_prot(act_block); 
+        #endif
         act_block = block->next;
     }
     if (!block->next) {
@@ -41,7 +47,7 @@ void    ft_defragment_block(t_block *block, t_page *page) {
         page->used_size -= block->size;
         if (block->prev)
             block->prev->next = NULL;
-        ft_bzero(block, block->size);
+        //ft_bzero(block, block->size);
     }
     return;
 }
@@ -69,7 +75,7 @@ void    ft_free(void *ptr) {
     
     if (!ptr)
         return;
-
+    
     pthread_mutex_lock(&g_heap_mutex);
 
     page = block->parent;

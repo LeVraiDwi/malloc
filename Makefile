@@ -12,7 +12,7 @@ OBJS = $(SRCS:.c=.o)
 
 NAME = test
 
-FLAGS = -Wall -Wextra -Werror -g
+FLAGS = -Wall -Wextra -Werror 
 
 HEADER = -I "./libft_malloc/include"
 
@@ -27,7 +27,7 @@ CD = cd
 
 ${NAME}:	${OBJS}
 			cd libft_malloc; $(MAKE);
-			${CC} -o ${NAME} ${OBJS} ${FLAGS} ${LIBFT_MALLOC}
+			${CC} -o ${NAME} ${OBJS} ${FLAGS} -lpthread -D_REENTRANT ${LIBFT_MALLOC}
 
 all: ${NAME}
 

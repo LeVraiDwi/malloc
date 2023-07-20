@@ -1,6 +1,7 @@
 #include "ft_malloc_include.h"
 
 bool    ft_expand_block(t_block *block, size_t size) {
+    printf("expand\n");
     t_page  *parent;
     t_block *fragmented_block;
     t_block *new_block;
@@ -22,10 +23,13 @@ bool    ft_expand_block(t_block *block, size_t size) {
                     block->next->prev = block;
                 parent->nb_block--;
                 parent->nb_freed--;
+                #ifdef MALLOC_OVERFLOW
+                    set_prot(block); 
+                #endif
                 return true;
             } else {
                 fragmented_block = block->next;
-                block->next = block + size;
+                block->next = (void *)block + size;
                 new_block = block->next;
                 new_block->size = block->size + fragmented_block->size - size;
                 block->size = size;
@@ -33,8 +37,14 @@ bool    ft_expand_block(t_block *block, size_t size) {
                     new_block->next = fragmented_block->next;
                     new_block->next->prev = new_block;
                 }
+                #ifdef MALLOC_OVERFLOW
+                    set_prot(block); 
+                #endif
                 new_block->allocated = false;
                 new_block->parent = parent;
+                #ifdef MALLOC_OVERFLOW
+                    set_prot(new_block); 
+                #endif
                 return true;
             }
         }
@@ -43,6 +53,7 @@ bool    ft_expand_block(t_block *block, size_t size) {
 }
 
 bool    ft_shrink_block(t_block *block, size_t size) {
+    printf("shrink\n");
     t_page  *parent;
     t_block *new_block;
     
@@ -62,6 +73,12 @@ bool    ft_shrink_block(t_block *block, size_t size) {
         parent->nb_freed++;
         block->next = new_block;
         block->size = size;
+        #ifdef MALLOC_OVERFLOW
+        set_prot(block); 
+        #endif
+        #ifdef MALLOC_OVERFLOW
+        set_prot(new_block); 
+        #endif
         ft_defragment_block(new_block, new_block->parent);
         return true;
     }

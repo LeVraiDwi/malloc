@@ -21,14 +21,14 @@ LIBFT = ./libft/libft.a
 
 RM = rm -f
 
-CFLAGS = -Wall -Wextra -Werror -fPIC
+CFLAGS = -Wall -Wextra -Werror -DMALLOC_OVERFLOW=1 
 
 .c.o: 
 			${CC} ${CFLAGS} ${HEADER} -c $< -o $@
 
 ${NAME}:	${OBJS}
 			cd libft; $(MAKE);
-			${CC} ${CFLAGS} ${HEADER} -o ${NAME} -shared ${OBJS} ${LIBFT}
+			${CC} ${CFLAGS} ${HEADER} -o ${NAME} -shared -DMALLOC_OVERFLOW=1 ${OBJS} ${LIBFT}
 
 all:		${NAME}
 

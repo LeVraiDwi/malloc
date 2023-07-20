@@ -3,6 +3,8 @@
         "mman.h": "c",
         "stdlib.h": "c",
         "ft_malloc_include.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "*.tcc": "c",
+        "stdbool.h": "c"
     }
 }

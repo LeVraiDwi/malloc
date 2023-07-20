@@ -40,11 +40,11 @@ typedef struct s_page t_page;
 
 typedef struct s_block {
     # ifdef MALLOC_OVERFLOW
-    char            start_prot[8];
+    char            start_prot[9];
     # endif
-    # ifdef ALLOCATION_HISTORY
-    size_t          old_size;
-    size_t          allocation_time;
+    # ifdef MALLOC_HISTORY
+        unsigned int    nb_reallocation;
+        size_t          old_size;
     # endif
     size_t          size;
     bool            allocated;
@@ -52,7 +52,7 @@ typedef struct s_block {
     struct s_block  *next;
     struct s_block  *prev;
     # ifdef MALLOC_OVERFLOW
-    char            end_prot[8];
+    char            end_prot[9];
     # endif
 }       t_block;
 
@@ -89,6 +89,7 @@ void    *ft_malloc(size_t size);
 
 void    ft_free(void *ptr);
 void    ft_defragment_block(t_block *block, t_page *page);
+void    set_prot(t_block *block);
 
 t_page  *ft_alloc_page(size_t size);
 
