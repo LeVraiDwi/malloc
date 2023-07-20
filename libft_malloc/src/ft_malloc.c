@@ -1,6 +1,6 @@
 #include "ft_malloc_include.h"
 
-t_heap  heap = {
+t_g_heap  g_heap = {
     .tiny = {
         .page = NULL,
         .nb_page = 0,
@@ -15,7 +15,7 @@ t_heap  heap = {
     }
 };
 
-pthread_mutex_t heap_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t g_heap_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void    *ft_fragment_block(t_block *block, t_page *page, size_t block_size) {
     t_block *new_block;
@@ -62,6 +62,8 @@ void    *ft_add_page(t_zone *zone, size_t block_size) {
          else 
             zone->page = ft_alloc_page(LARGE_PAGE_SIZE(block_size));
         act_page = zone->page;
+        if (act_page == NULL)
+            return NULL;
         act_page->prev = NULL;
         act_page->next = NULL;
     } else {
@@ -75,8 +77,10 @@ void    *ft_add_page(t_zone *zone, size_t block_size) {
             zone->page->next = ft_alloc_page(SMALL_PAGE_SIZE);
          else 
             zone->page->next = ft_alloc_page(LARGE_PAGE_SIZE(block_size));
-        act_page->next->prev = act_page;
-        act_page = act_page->next;
+        if (zone->page->next == NULL)
+            return NULL;
+        act_page = zone->page->next;
+        act_page->prev = zone->page;
     }
     if (act_page == NULL)
         return NULL;
@@ -96,12 +100,12 @@ void    *ft_add_page(t_zone *zone, size_t block_size) {
 void    *ft_find_fitting_block(t_zone *zone, size_t block_size) {
     t_page  *act_page;
     t_block *act_block;
+    t_block *last_block;
 
     if (zone->page == NULL)
         return NULL;
-    for (unsigned int i = 0; i > zone->nb_page; i++) {
+    for (unsigned int i = 0; i < zone->nb_page; i++) {
         act_page = &zone->page[i];
-        
         if (act_page->block == NULL) {
             act_page->nb_block = 1;
             act_page->block = (t_block *)HEADER_PAGE_SHIFT(&act_page);
@@ -118,18 +122,19 @@ void    *ft_find_fitting_block(t_zone *zone, size_t block_size) {
                 if (!act_block->allocated && act_block->size >= block_size) {
                     return ft_fragment_block(act_block, act_page, block_size);
                 }
-                act_block = act_block->next;
+                last_block = act_block;
+                act_block = act_block->next;     
         }
+        act_block = last_block;
         if ((act_page->size - act_page->used_size) >= block_size) {
             //add block at the end
             act_page->nb_block += 1;
             act_page->used_size += block_size;
             act_block->next = act_block + act_block->size;
-            act_block->next->prev = act_block;
             act_block = act_block->next;
+            act_block->prev = last_block;
             act_block->allocated = true;
             act_block->size = block_size;
-            act_block->prev = NULL;
             act_block->parent = act_page;
             return HEADER_BLOCK_SHIFT(act_block);
         }
@@ -157,15 +162,16 @@ void    *ft_malloc(size_t size) {
     if (size == 0)
         return NULL;
 
-    pthread_mutex_lock(&heap_mutex);
+    pthread_mutex_lock(&g_heap_mutex);
 
     if (block_size <= TINY_BLOCK_MAX)
-        ptr = ft_alloc(&heap.tiny, block_size);
-    else if (block_size <= SMALL_BLOCK_MAX)
-        ptr = ft_alloc(&heap.small, block_size);
+        ptr = ft_alloc(&g_heap.tiny, block_size);
+    else if (block_size <= SMALL_BLOCK_MAX) {
+        ptr = ft_alloc(&g_heap.small, block_size);
+    }
     else
-        ptr = ft_alloc(&heap.large, block_size);
+        ptr = ft_alloc(&g_heap.large, block_size);
 
-    pthread_mutex_unlock(&heap_mutex);
+    pthread_mutex_unlock(&g_heap_mutex);
     return ptr;
 }

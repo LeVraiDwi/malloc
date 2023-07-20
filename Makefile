@@ -12,7 +12,7 @@ OBJS = $(SRCS:.c=.o)
 
 NAME = test
 
-FLAGS = -Wall -Wextra -Werror
+FLAGS = -Wall -Wextra -Werror -g
 
 HEADER = -I "./libft_malloc/include"
 

@@ -39,12 +39,23 @@
 typedef struct s_page t_page;
 
 typedef struct s_block {
+    # ifdef MALLOC_OVERFLOW
+    char            start_prot[8];
+    # endif
+    # ifdef ALLOCATION_HISTORY
+    size_t          old_size;
+    size_t          allocation_time;
+    # endif
     size_t          size;
     bool            allocated;
     t_page          *parent;
     struct s_block  *next;
     struct s_block  *prev;
+    # ifdef MALLOC_OVERFLOW
+    char            end_prot[8];
+    # endif
 }       t_block;
+
 
 typedef struct s_page {
     size_t          size;
@@ -61,14 +72,14 @@ typedef struct s_zone {
     unsigned int    nb_page;
 }       t_zone;
 
-typedef struct s_heap {
+typedef struct s_g_heap {
     t_zone  tiny;
     t_zone  small;
     t_zone  large;
-}       t_heap;
+}       t_g_heap;
 
-extern t_heap heap;
-extern pthread_mutex_t heap_mutex;
+extern t_g_heap g_heap;
+extern pthread_mutex_t g_heap_mutex;
 
 void    *ft_find_fitting_block(t_zone *zone, size_t block_size);
 void    *ft_fragment_block(t_block *block, t_page *page, size_t block_size);
@@ -80,5 +91,7 @@ void    ft_free(void *ptr);
 void    ft_defragment_block(t_block *block, t_page *page);
 
 t_page  *ft_alloc_page(size_t size);
+
+t_zone  *get_zone(int i);
 
 #endif

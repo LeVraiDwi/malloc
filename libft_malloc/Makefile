@@ -5,6 +5,7 @@ SRCSBONUS = $(addprefix $(SRC_PATH)/,$(SRC_BONUS))
 SRC_PATH = ./src
 
 SRC_NAME =	ft_malloc.c ft_free.c ft_realloc.c\
+			show_alloc.c ft_show_alloc_hex.c\
 
 OBJS = ${SRCS:.c=.o}
 
@@ -20,7 +21,7 @@ LIBFT = ./libft/libft.a
 
 RM = rm -f
 
-CFLAGS = -Wall -Wextra -Werror
+CFLAGS = -Wall -Wextra -Werror -fPIC
 
 .c.o: 
 			${CC} ${CFLAGS} ${HEADER} -c $< -o $@

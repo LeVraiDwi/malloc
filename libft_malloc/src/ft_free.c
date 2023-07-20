@@ -2,11 +2,11 @@
 
 t_zone    *ft_get_page_zone(t_page *page) {
     if (page->size == TINY_PAGE_SIZE)
-        return &heap.tiny;
+        return &g_heap.tiny;
     else if (page->size == SMALL_PAGE_SIZE)
-        return &heap.small;
+        return &g_heap.small;
     else
-        return &heap.large;
+        return &g_heap.large;
 }
 
 void    ft_defragment_block(t_block *block, t_page *page) {
@@ -38,7 +38,9 @@ void    ft_defragment_block(t_block *block, t_page *page) {
     if (!block->next) {
         page->nb_block--;
         page->nb_freed--;
-        block->prev->next = NULL;
+        page->used_size -= block->size;
+        if (block->prev)
+            block->prev->next = NULL;
         ft_bzero(block, block->size);
     }
     return;
@@ -48,7 +50,7 @@ void    ft_free_page(t_page *page) {
     t_zone  *page_zone;
 
     page_zone = ft_get_page_zone(page);
-    if (page_zone->nb_page > 1) {
+    if (page_zone->nb_page >= 1) {
         page_zone->nb_page--;
         if (page_zone->page == page)
             page_zone->page = page->next;
@@ -56,7 +58,7 @@ void    ft_free_page(t_page *page) {
             page->prev->next = page->next;
         if (page->next)
             page->next->prev = page->prev;
-        if (munmap(page, page->size) == 01)
+        if (munmap(page, page->size))
             ft_putstr_fd("free() : munmap fail\n", 2);
     }
 }
@@ -68,7 +70,7 @@ void    ft_free(void *ptr) {
     if (!ptr)
         return;
 
-    pthread_mutex_lock(&heap_mutex);
+    pthread_mutex_lock(&g_heap_mutex);
 
     page = block->parent;
     block->allocated = false;
@@ -79,6 +81,6 @@ void    ft_free(void *ptr) {
         ft_defragment_block(block, page);
     }
 
-    pthread_mutex_unlock(&heap_mutex);
+    pthread_mutex_unlock(&g_heap_mutex);
     return;
 }

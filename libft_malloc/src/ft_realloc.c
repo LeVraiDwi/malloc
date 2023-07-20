@@ -62,14 +62,13 @@ bool    ft_shrink_block(t_block *block, size_t size) {
         parent->nb_freed++;
         block->next = new_block;
         block->size = size;
-        return true;
         ft_defragment_block(new_block, new_block->parent);
+        return true;
     }
     return false;
 }
 
 bool    ft_fragment_if_possible(t_block *block, size_t size) {
-    printf("block size: %zu size: %zu\n", block->size, size);
     if (size == block->size)
         return true;
     else if (size > block->size)
@@ -94,18 +93,18 @@ void    *ft_realloc(void *ptr, size_t size) {
     
     block = HEADER_BLOCK_DESHIFT(ptr);
 
-    pthread_mutex_lock(&heap_mutex);
+    pthread_mutex_lock(&g_heap_mutex);
         is_realloc = ft_fragment_if_possible(block, BLOCK_SIZE(size));
-    pthread_mutex_unlock(&heap_mutex);
+    pthread_mutex_unlock(&g_heap_mutex);
 
     if (is_realloc)
         return ptr;
     
     new_alloc = ft_malloc(size);
     if (new_alloc) {
-        pthread_mutex_lock(&heap_mutex);
+        pthread_mutex_lock(&g_heap_mutex);
         ft_memcpy(new_alloc, ptr, block->size - sizeof(t_block));
-        pthread_mutex_unlock(&heap_mutex);
+        pthread_mutex_unlock(&g_heap_mutex);
         ft_free(ptr);
     }
     return new_alloc;
