@@ -22,7 +22,9 @@
 # define HEADER_BLOCK_SHIFT(block) ((void *)block + sizeof(t_block))
 # define HEADER_BLOCK_DESHIFT(ptr) ((void *)ptr - sizeof(t_block))
 
-
+#define TINY_PAGE 0
+#define SMALL_PAGE 2
+#define LARGE_PAGE 3
 
 # define MIN_PAGE_BLOCK 128
 
@@ -56,10 +58,15 @@ typedef struct s_block {
     # endif
 }       t_block;
 
+typedef enum    e_type_page {
+    Large = 0, Tiny = TINY_BLOCK_SIZE, Small = SMALL_BLOCK_SIZE
+
+}               t_type_page;
 
 typedef struct s_page {
     size_t          size;
     size_t          used_size;
+    t_type_page     typeOfPage;
     unsigned int    nb_block;
     unsigned int    nb_freed;
     t_block         *block;
@@ -86,12 +93,15 @@ void    *ft_fragment_block(t_block *block, t_page *page, size_t block_size);
 void    *ft_add_page(t_zone *zone, size_t block_size);
 void    *ft_alloc(t_zone *zone, size_t block_size);
 void    *ft_malloc(size_t size);
+void    *ft_run_malloc(size_t size);
 
 void    ft_free(void *ptr);
-void    ft_defragment_block(t_block *block, t_page *page);
+void    ft_defragment_block(t_block *block);
 void    set_prot(t_block *block);
+void    ft_run_free(void *ptr);
+void    ft_free_page(t_page *page);
 
-t_page  *ft_alloc_page(size_t size);
+t_page  *ft_alloc_page(size_t size, t_type_page type);
 
 t_zone  *get_zone(int i);
 

@@ -32,7 +32,6 @@ pthread_mutex_t g_heap_mutex = PTHREAD_MUTEX_INITIALIZER;
 void    *ft_fragment_block(t_block *block, t_page *page, size_t block_size) {
     t_block *new_block;
 
-    printf("fragment block\n");
     if (block->size - block_size >= BLOCK_SIZE(ALIGNEMENT)) {
         #ifdef MALLOC_OVERFLOW
         set_prot(block); 
@@ -58,7 +57,7 @@ void    *ft_fragment_block(t_block *block, t_page *page, size_t block_size) {
     return HEADER_BLOCK_SHIFT(block);
 }
 
-t_page    *ft_alloc_page(size_t size) {
+t_page    *ft_alloc_page(size_t size, t_type_page type) {
     struct rlimit	limit;
 	t_page			*page;
 
@@ -70,6 +69,7 @@ t_page    *ft_alloc_page(size_t size) {
 		return (NULL);
 	ft_bzero(page, sizeof(t_page));
 	page->size = size;
+    page->typeOfPage = type;
 	page->used_size = sizeof(t_page);
 	return (page);
 }
@@ -77,14 +77,14 @@ t_page    *ft_alloc_page(size_t size) {
 void    *ft_add_page(t_zone *zone, size_t block_size) {
     t_page  *act_page;
 
-    printf("add page\n");
     if (zone->page == NULL) {
+        //printf("block size: %li\n", block_size);
         if (block_size <= TINY_BLOCK_MAX) 
-            zone->page = ft_alloc_page(TINY_PAGE_SIZE);
+            zone->page = ft_alloc_page(TINY_PAGE_SIZE, Tiny);
         else if (block_size <= SMALL_BLOCK_MAX)
-            zone->page = ft_alloc_page(SMALL_PAGE_SIZE);
+            zone->page = ft_alloc_page(SMALL_PAGE_SIZE, Large);
          else 
-            zone->page = ft_alloc_page(LARGE_PAGE_SIZE(block_size));
+            zone->page = ft_alloc_page(LARGE_PAGE_SIZE(block_size), Large);
         act_page = zone->page;
         if (act_page == NULL)
             return NULL;
@@ -95,12 +95,13 @@ void    *ft_add_page(t_zone *zone, size_t block_size) {
         while (act_page->next) {
             act_page = act_page->next;
         }
+        printf("block size: %li\n", block_size);
         if (block_size <= TINY_BLOCK_MAX) 
-            zone->page->next = ft_alloc_page(TINY_PAGE_SIZE);
+            zone->page->next = ft_alloc_page(TINY_PAGE_SIZE, Tiny);
         else if (block_size <= SMALL_BLOCK_MAX)
-            zone->page->next = ft_alloc_page(SMALL_PAGE_SIZE);
+            zone->page->next = ft_alloc_page(SMALL_PAGE_SIZE, Small);
          else 
-            zone->page->next = ft_alloc_page(LARGE_PAGE_SIZE(block_size));
+            zone->page->next = ft_alloc_page(LARGE_PAGE_SIZE(block_size), Large);
         if (zone->page->next == NULL)
             return NULL;
         act_page = zone->page->next;
@@ -147,10 +148,8 @@ void    *ft_find_fitting_block(t_zone *zone, size_t block_size) {
             #endif
             return HEADER_BLOCK_SHIFT(act_page->block);
         }
-        printf("maison\n");
         act_block = act_page->block;
         last_block = act_page->block;
-        printf("actualblock: %X, %X\n", (unsigned int)act_block, (unsigned int)last_block);
         while (act_block) {
             if (!act_block->allocated && act_block->size >= block_size) {
                 return ft_fragment_block(act_block, act_page, block_size);
@@ -158,16 +157,13 @@ void    *ft_find_fitting_block(t_zone *zone, size_t block_size) {
             last_block = act_block;
             act_block = act_block->next;     
         }
-        printf("maison\n");
         act_block = last_block;
         if ((act_page->size - act_page->used_size) >= block_size) {
-            printf("page: %X %lX \n", (unsigned int)act_page, (unsigned int)(void *)act_page + act_page->size);
             //add block at the end
             act_page->nb_block += 1;
             act_page->used_size += block_size;
             last_block->next = (void *)act_block + act_block->size;
             act_block = last_block->next;
-            printf("block: %X next: %X\n", (unsigned int)last_block, (unsigned int)last_block->next);
             act_block->next = NULL;
             act_block->prev = last_block;
             act_block->allocated = true;
@@ -187,7 +183,6 @@ void    *ft_alloc(t_zone *zone, size_t block_size) {
     t_block *block_ptr;
 
     block_ptr = ft_find_fitting_block(zone, block_size);
-    printf("pointer found: %X\n", (unsigned int)block_ptr);
     if (block_ptr == NULL) {
         block_ptr = ft_add_page(zone, block_size);
     return block_ptr;
@@ -195,19 +190,18 @@ void    *ft_alloc(t_zone *zone, size_t block_size) {
     return block_ptr;
 }
 
-void    *ft_malloc(size_t size) {
+void *ft_run_malloc(size_t size) {
     size_t  block_size;
     void    *ptr;
     
     ptr = NULL;
+    if (size <= 0)
+        return NULL;
     block_size = BLOCK_SIZE(size);
     if (size == 0)
         return NULL;
-
-    printf("malloc\n");
-
-    pthread_mutex_lock(&g_heap_mutex);
-
+    
+    ptr = NULL;
     if (block_size <= TINY_BLOCK_MAX)
         ptr = ft_alloc(&g_heap.tiny, block_size);
     else if (block_size <= SMALL_BLOCK_MAX) {
@@ -215,6 +209,16 @@ void    *ft_malloc(size_t size) {
     }
     else
         ptr = ft_alloc(&g_heap.large, block_size);
+    return ptr;
+}
+
+void    *ft_malloc(size_t size) {
+    void    *ptr;
+    
+    ptr = NULL;
+    pthread_mutex_lock(&g_heap_mutex);
+
+    ptr = ft_run_malloc(size);
 
     pthread_mutex_unlock(&g_heap_mutex);
     return ptr;

@@ -1,59 +1,62 @@
 #include "ft_malloc_include.h"
 
-bool    ft_expand_block(t_block *block, size_t size) {
-    printf("expand\n");
-    t_page  *parent;
-    t_block *fragmented_block;
+bool    ft_expand_block(t_block *block, size_t new_size) {
+    t_page *parent;
     t_block *new_block;
 
     parent = block->parent;
-    if (block->next == NULL) {
-        if (parent->size - parent->used_size + block->size >=  size) {
+    //le bloc suivant est non alloc et il y a la place
+    if (block->next && !block->next->allocated && block->next->size + block->size >= new_size) {
+        t_block *next;
+
+        next = block->next;
+        if (next->size + block->size <= BLOCK_SIZE(ALIGNEMENT)) //la somme des block est pile a la bonne taille le block suivant est supprimer
+        {
+            block->size += next->size;
+            parent->nb_block--;
+            parent->nb_freed--;
+            block->next = next->next;
+            if (next->next)
+                next->next->prev = block;
+            ft_bzero(next, next->size);
+            #ifdef MALLOC_OVERFLOW
+                    set_prot(block); 
+            #endif
+        }
+        else { //la nouvelle taille fais forcement la taille d'un header t_block
+            new_block = block + new_size;
+            new_block->allocated = false;
+            new_block->next = next->next;
+            if (new_block->next)
+                new_block->next->prev = new_block;
+            new_block->prev = block;
             parent->used_size -= block->size;
-            block->size = size;
-            parent->used_size += size;
-            return true;
-        }
-    } else if (block->next && !block->next->allocated) {
-        if (block->size + block->next->size >= size) {
-            if (block->size + block->next->size - size <= BLOCK_SIZE(ALIGNEMENT)) {
-                block->size += block->next->size;
-                block->next = block->next->next;
-                if (block->next)
-                    block->next->prev = block;
-                parent->nb_block--;
-                parent->nb_freed--;
-                #ifdef MALLOC_OVERFLOW
+            new_block->size = block->size + next->size - new_size;
+            block->size = new_size;
+            parent->used_size += block->size;
+            block->next = new_block;
+            ft_bzero(next, new_size - block->size);
+            #ifdef MALLOC_OVERFLOW
                     set_prot(block); 
-                #endif
-                return true;
-            } else {
-                fragmented_block = block->next;
-                block->next = (void *)block + size;
-                new_block = block->next;
-                new_block->size = block->size + fragmented_block->size - size;
-                block->size = size;
-                if (fragmented_block->next) {
-                    new_block->next = fragmented_block->next;
-                    new_block->next->prev = new_block;
-                }
-                #ifdef MALLOC_OVERFLOW
-                    set_prot(block); 
-                #endif
-                new_block->allocated = false;
-                new_block->parent = parent;
-                #ifdef MALLOC_OVERFLOW
-                    set_prot(new_block); 
-                #endif
-                return true;
-            }
+            #endif
+            #ifdef MALLOC_OVERFLOW
+                    set_prot(block->next); 
+            #endif
         }
+        return true;
     }
-    return false;
+    else if (!block->next && block->parent->size - block->parent->used_size + block->size >= new_size) { //le bloc suivant est null mais il reste de la place non utiliser dans la page
+        parent->used_size += new_size - block->size;
+        block->size = new_size;
+        #ifdef MALLOC_OVERFLOW
+                    set_prot(block); 
+        #endif
+        return true;
+    }
+    return false; // il y a pas de place pour l'expansion
 }
 
 bool    ft_shrink_block(t_block *block, size_t size) {
-    printf("shrink\n");
     t_page  *parent;
     t_block *new_block;
     
@@ -79,7 +82,17 @@ bool    ft_shrink_block(t_block *block, size_t size) {
         #ifdef MALLOC_OVERFLOW
         set_prot(new_block); 
         #endif
-        ft_defragment_block(new_block, new_block->parent);
+        ft_defragment_block(new_block);
+        return true;
+    }
+    return false;
+}
+
+bool ft_expand_possible(t_block *block, size_t new_size) {
+    if (block->next && block->next->size + block->size >= new_size) {
+        return true;
+    }
+    else if (!block->next && block->parent->size - block->parent->used_size + block->size >= new_size) {
         return true;
     }
     return false;
@@ -88,10 +101,16 @@ bool    ft_shrink_block(t_block *block, size_t size) {
 bool    ft_fragment_if_possible(t_block *block, size_t size) {
     if (size == block->size)
         return true;
-    else if (size > block->size)
+    else if (size > block->parent->typeOfPage)
+        return false;
+    else if (size >= block->size)
         return ft_expand_block(block, size);
-    else
+    else if (size < block->size)
+    {
         return ft_shrink_block(block, size);
+    }
+    return false; 
+        
 }
 
 void    *ft_realloc(void *ptr, size_t size) {
@@ -99,31 +118,34 @@ void    *ft_realloc(void *ptr, size_t size) {
     bool    is_realloc;
     void    *new_alloc;
 
-    if (!size) {
+    pthread_mutex_lock(&g_heap_mutex);
+    if (size <= 0) {
         if (ptr)
-            ft_free(ptr);
+            ft_run_free(ptr);
+        pthread_mutex_unlock(&g_heap_mutex);
         return NULL;
     }
 
     if (!ptr)
-        return ft_malloc(size);
+    {
+        pthread_mutex_unlock(&g_heap_mutex);
+        return ft_run_malloc(size);
+    }
     
     block = HEADER_BLOCK_DESHIFT(ptr);
-
-    pthread_mutex_lock(&g_heap_mutex);
-        is_realloc = ft_fragment_if_possible(block, BLOCK_SIZE(size));
-    pthread_mutex_unlock(&g_heap_mutex);
+    is_realloc = ft_fragment_if_possible(block, BLOCK_SIZE(size));
 
     if (is_realloc)
-        return ptr;
-    
-    new_alloc = ft_malloc(size);
-    if (new_alloc) {
-        pthread_mutex_lock(&g_heap_mutex);
-        ft_memcpy(new_alloc, ptr, block->size - sizeof(t_block));
+    {
         pthread_mutex_unlock(&g_heap_mutex);
-        ft_free(ptr);
+        return ptr;
     }
+    new_alloc = ft_run_malloc(size);
+    if (new_alloc) {
+        ft_memcpy(new_alloc, ptr, block->size - sizeof(t_block));
+        ft_run_free(ptr);
+    }
+    pthread_mutex_unlock(&g_heap_mutex);
+
     return new_alloc;
-    
 }

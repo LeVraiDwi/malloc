@@ -15,7 +15,7 @@ void show_page_mem(t_page *page) {
 
     block = page->block;
         while (block) {
-            printf("0x%X - 0x%X : %zu bytes\n", (unsigned int)block, (unsigned int)(block + block->size), (block->size - sizeof(t_block)) );
+            printf("0x%lX - 0x%lX : %zu bytes\n", (unsigned long int)block, (unsigned long int)(block + block->size), (block->size - sizeof(t_block)) );
             block = block->next;
         }
     page = page->next;
@@ -28,19 +28,19 @@ void show_alloc_mem() {
     pthread_mutex_lock(&g_heap_mutex);
     page = get_zone(0)->page;
     while (page) {
-        printf("TINY : 0x%X\n", (unsigned int)page);
+        printf("TINY : 0x%lX\n", (unsigned long int)page);
         show_page_mem(page);
         page = page->next;
     }
     page = get_zone(1)->page;
     while (page) {
-        printf("SMALL : 0x%X\n", (unsigned int)page);
+        printf("SMALL : 0x%lX\n", (unsigned long int)page);
         show_page_mem(page);
         page = page->next;
     }
     page = get_zone(2)->page;
     while (page) {
-        printf("LARGE : 0x%X\n", (unsigned int)page);
+        printf("LARGE : 0x%lX\n", (unsigned long int)page);
         show_page_mem(page);
         page = page->next;
     }
